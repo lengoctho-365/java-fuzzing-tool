@@ -10,63 +10,94 @@ public class FuzzingRunner {
     private static final String JAZZER_JAR = "C:\\Users\\ASUS\\jazzer\\jazzer_standalone.jar";
 
     /**
-     * Run Jazzer for Universal fuzzer (if exists)
-     * then run all GeneratedFuzzTest_X files.
+     * Run Jazzer for all generated tests with BENCHMARK in classpath
      */
-    public static void runAllGeneratedTests(int timeSeconds, MainFrame ui) {
+    public static void runAllGeneratedTests(int timeSeconds, MainFrame ui, String benchmarkPath) {
 
-        // 1️⃣ Chạy Universal Fuzz nếu có
+        // Chay Universal Fuzz neu co
         File uni = new File("target/test-classes/fuzz/GeneratedUniversalFuzzTest.class");
         if (uni.exists()) {
-            ui.appendOutput("\n🚀 Running fuzz.GeneratedUniversalFuzzTest");
-            runSingle("fuzz.GeneratedUniversalFuzzTest", timeSeconds, ui);
+            ui.appendOutput("\nRunning fuzz.GeneratedUniversalFuzzTest");
+            runSingle("fuzz.GeneratedUniversalFuzzTest", timeSeconds, ui, benchmarkPath);
         } else {
-            ui.appendOutput("ℹ Universal fuzzer not found. Skipping.");
+            ui.appendOutput("Universal fuzzer not found. Skipping.");
         }
 
-        // 2️⃣ Chạy tất cả GeneratedFuzzTest_X
+        // Chay tat ca GeneratedFuzzTest_X
         int index = 0;
         while (true) {
             String testClass = "fuzz.GeneratedFuzzTest_" + index;
-
             File classFile = new File("target/test-classes/fuzz/GeneratedFuzzTest_" + index + ".class");
 
             if (!classFile.exists()) {
                 if (index == 0) {
-                    ui.appendOutput("❌ No generated fuzz tests found.");
+                    ui.appendOutput("No generated fuzz tests found.");
                 }
                 break;
             }
 
-            ui.appendOutput("\n🚀 Running " + testClass);
-            runSingle(testClass, timeSeconds, ui);
-
+            ui.appendOutput("\nRunning " + testClass);
+            runSingle(testClass, timeSeconds, ui, benchmarkPath);
             index++;
         }
 
-        ui.appendOutput("\n✅ All fuzz tests finished.");
+        ui.appendOutput("\nAll fuzz tests finished.");
     }
 
-
-    private static void runSingle(String testClass, int timeSeconds, MainFrame ui) {
+    private static void runSingle(String testClass, int timeSeconds, MainFrame ui, String benchmarkPath) {
         try {
-            String cp =
-                    "target\\test-classes;" +
-                            "target\\classes;" +
-                            "target\\dependency\\*;" +   // ⭐ load toàn bộ thư viện test (Spring Mock,...)
-                            JAZZER_JAR;
+            // Build classpath - bat buoc phai co benchmark
+            StringBuilder cpBuilder = new StringBuilder();
+            cpBuilder.append("target\\test-classes;");
+            cpBuilder.append("target\\classes;");
+            cpBuilder.append("target\\dependency\\*;");
+            
+            // Them benchmark path
+            if (benchmarkPath != null && !benchmarkPath.isEmpty()) {
+                File benchmarkDir = new File(benchmarkPath);
+                if (benchmarkDir.exists()) {
+                    cpBuilder.append(benchmarkPath).append(";");
+                    
+                    // Neu co thu muc build hoac bin trong benchmark
+                    File buildDir = new File(benchmarkDir, "build/classes");
+                    if (buildDir.exists()) {
+                        cpBuilder.append(buildDir.getAbsolutePath()).append(";");
+                    }
+                    
+                    File binDir = new File(benchmarkDir, "bin");
+                    if (binDir.exists()) {
+                        cpBuilder.append(binDir.getAbsolutePath()).append(";");
+                    }
+                    
+                    ui.appendOutput("Benchmark added to classpath: " + benchmarkPath);
+                } else {
+                    ui.appendOutput("Warning: Benchmark path not found: " + benchmarkPath);
+                }
+            }
+            
+            cpBuilder.append(JAZZER_JAR);
+            String cp = cpBuilder.toString();
 
             List<String> cmd = new ArrayList<>();
             cmd.add(JAVA);
             cmd.add("-cp");
             cmd.add(cp);
+            
+            // Them debug flag
+            cmd.add("-Djazzer.hooks=false");
+            
             cmd.add("com.code_intelligence.jazzer.Jazzer");
             cmd.add("--target_class=" + testClass);
             cmd.add("--target_method=fuzzerTestOneInput");
             cmd.add("-max_total_time=" + timeSeconds);
-            cmd.add("--coverage_report=coverage.html");
+            cmd.add("--coverage_report=coverage_" + testClass.replace(".", "_") + ".html");
+            
+            // Them instrumentation cho benchmark
+            if (benchmarkPath != null && !benchmarkPath.isEmpty()) {
+                cmd.add("--instrumentation_includes=org.owasp.benchmark.**");
+            }
 
-            ui.appendOutput(String.join(" ", cmd));
+            ui.appendOutput("Command: " + String.join(" ", cmd));
             ui.appendOutput("--------------------------------------------------");
 
             ProcessBuilder pb = new ProcessBuilder(cmd);
@@ -77,15 +108,24 @@ public class FuzzingRunner {
 
             try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
                 String line;
+                int lineCount = 0;
                 while ((line = r.readLine()) != null) {
                     ui.appendOutput(line);
+                    lineCount++;
+                    
+                    // Canh bao neu khong co coverage
+                    if (line.contains("0 new") && lineCount > 20) {
+                        ui.appendOutput("Warning: No new coverage detected. Check if benchmark classes are in classpath!");
+                    }
                 }
             }
 
-            p.waitFor();
+            int exitCode = p.waitFor();
+            ui.appendOutput("Process exited with code: " + exitCode);
 
         } catch (Exception e) {
-            ui.appendOutput("❌ Jazzer error in " + testClass + ": " + e.getMessage());
+            ui.appendOutput("Jazzer error in " + testClass + ": " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }

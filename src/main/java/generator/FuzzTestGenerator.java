@@ -11,7 +11,7 @@ public class FuzzTestGenerator {
     public static List<String> generateMultipleClasses(List<MethodInfo> methods) throws Exception {
         List<String> output = new ArrayList<>();
         int index = 0;
-        int batchSize = 120;
+        int batchSize = 50;
 
         List<MethodInfo> batch = new ArrayList<>();
 
@@ -31,84 +31,77 @@ public class FuzzTestGenerator {
     }
 
     private static String writeBatchClass(List<MethodInfo> batch, int index) throws Exception {
-        String className = "GeneratedFuzzBatch_" + index;
+        String className = "GeneratedFuzzTest_" + index;
         File out = new File("src/test/java/fuzz/" + className + ".java");
         out.getParentFile().mkdirs();
 
         StringBuilder sb = new StringBuilder();
-        sb.append("package fuzz;\n\n");
+        sb.append("package fuzz;\n");
         sb.append("import com.code_intelligence.jazzer.api.*;\n");
-        sb.append("import org.springframework.mock.web.*;\n");
-        sb.append("import javax.servlet.http.*;\n");
-        sb.append("import java.lang.reflect.*;\n\n");
+        sb.append("import java.lang.reflect.*;\n");
+        sb.append("import java.util.*;\n\n");
 
-        sb.append("public class ").append(className).append(" {\n\n");
-        sb.append(" public static void fuzzerTestOneInput(FuzzedDataProvider data) {\n");
-
-        for (MethodInfo mi : batch) {
-            sb.append(generateFuzzLogic(mi));
+        sb.append("public class ").append(className).append(" {\n");
+        sb.append("  static class Target { final String c, m; Target(String c, String m) { this.c=c; this.m=m; }}\n");
+        
+        sb.append("  static Target[] targets = new Target[] {\n");
+        for (int i = 0; i < batch.size(); i++) {
+            MethodInfo mi = batch.get(i);
+            sb.append("    new Target(\"").append(mi.className).append("\", \"").append(mi.methodName).append("\")");
+            if (i < batch.size() - 1) sb.append(",");
+            sb.append("\n");
         }
+        sb.append("  };\n\n");
 
-        sb.append(" }\n");
+        sb.append("  public static void fuzzerTestOneInput(FuzzedDataProvider data) {\n");
+        sb.append("    if (targets.length == 0) return;\n");
+        sb.append("    int idx = Math.floorMod(data.consumeInt(), targets.length);\n");
+        sb.append("    Target t = targets[idx];\n");
+        sb.append("    Class<?> cls;\n");
+        sb.append("    try { cls = Class.forName(t.c, false, Thread.currentThread().getContextClassLoader()); }\n");
+        sb.append("    catch (ClassNotFoundException e) {\n");
+        sb.append("      if (idx == 0) System.err.println(\"Class not found: \" + t.c + \" - Check classpath!\");\n");
+        sb.append("      return;\n");
+        sb.append("    }\n");
+        sb.append("    catch (Throwable e) { return; }\n");
+        
+        sb.append("    Object instance = null;\n");
+        sb.append("    try {\n");
+        sb.append("      Constructor<?> ctor = cls.getDeclaredConstructor();\n");
+        sb.append("      if (Modifier.isPublic(ctor.getModifiers())) instance = ctor.newInstance();\n");
+        sb.append("    } catch (Throwable ignored) {}\n");
+        
+        sb.append("    for (Method m : cls.getDeclaredMethods()) {\n");
+        sb.append("      if (!m.getName().equals(t.m)) continue;\n");
+        sb.append("      if (m.getParameterCount() > 2) continue;\n");
+        sb.append("      m.setAccessible(true);\n");
+        sb.append("      Object[] args = new Object[m.getParameterCount()];\n");
+        sb.append("      Class<?>[] types = m.getParameterTypes();\n");
+        sb.append("      boolean supported = true;\n");
+        sb.append("      for (int i = 0; i < types.length; i++) {\n");
+        sb.append("        if (types[i] == String.class) args[i] = data.consumeString(256);\n");
+        sb.append("        else if (types[i] == byte[].class) args[i] = data.consumeBytes(512);\n");
+        sb.append("        else if (types[i] == int.class) args[i] = data.consumeInt();\n");
+        sb.append("        else { supported = false; break; }\n");
+        sb.append("      }\n");
+        sb.append("      if (!supported) continue;\n");
+        sb.append("      try {\n");
+        sb.append("        if (Modifier.isStatic(m.getModifiers())) m.invoke(null, args);\n");
+        sb.append("        else if (instance != null) m.invoke(instance, args);\n");
+        sb.append("      } catch (InvocationTargetException ite) {\n");
+        sb.append("        Throwable cause = ite.getCause();\n");
+        sb.append("        if (cause instanceof Error) throw (Error) cause;\n");
+        sb.append("      } catch (Throwable ignored) {}\n");
+        sb.append("      break;\n");
+        sb.append("    }\n");
+        sb.append("  }\n");
         sb.append("}\n");
 
         try (FileWriter fw = new FileWriter(out)) {
             fw.write(sb.toString());
         }
 
+        System.out.println("Generated: " + className + " with " + batch.size() + " targets");
         return "fuzz." + className;
-    }
-
-    private static String generateFuzzLogic(MethodInfo mi) {
-        String cls = mi.className;
-        String method = mi.methodName;
-
-        // 1) Spring Controller (req, res)
-        if (mi.paramTypes.size() == 2 &&
-                mi.paramTypes.get(0).contains("HttpServletRequest") &&
-                mi.paramTypes.get(1).contains("HttpServletResponse")) {
-
-            return String.format(
-                    " try {\n" +
-                            "   Class<?> c = Class.forName(\"%s\");\n" +
-                            "   Object inst = c.getDeclaredConstructor().newInstance();\n" +
-                            "   Method m = c.getDeclaredMethod(\"%s\", HttpServletRequest.class, HttpServletResponse.class);\n" +
-                            "   MockHttpServletRequest req = new MockHttpServletRequest();\n" +
-                            "   MockHttpServletResponse res = new MockHttpServletResponse();\n" +
-                            "   req.setParameter(\"input\", data.consumeString(200));\n" +
-                            "   m.invoke(inst, req, res);\n" +
-                            " } catch (Throwable t) {}\n",
-                    cls, method);
-        }
-
-        // 2) setter(String)
-        if (mi.paramTypes.size() == 1 && mi.paramTypes.get(0).equals("java.lang.String")) {
-
-            return String.format(
-                    " try {\n" +
-                            "   Class<?> c = Class.forName(\"%s\");\n" +
-                            "   Object inst = c.getDeclaredConstructor().newInstance();\n" +
-                            "   Method m = c.getDeclaredMethod(\"%s\", String.class);\n" +
-                            "   String s = data.consumeString(300);\n" +
-                            "   m.invoke(inst, s);\n" +
-                            " } catch (Throwable t) {}\n",
-                    cls, method);
-        }
-
-        // 3) no-arg method
-        if (mi.paramTypes.isEmpty()) {
-
-            return String.format(
-                    " try {\n" +
-                            "   Class<?> c = Class.forName(\"%s\");\n" +
-                            "   Object inst = c.getDeclaredConstructor().newInstance();\n" +
-                            "   Method m = c.getDeclaredMethod(\"%s\");\n" +
-                            "   m.invoke(inst);\n" +
-                            " } catch (Throwable t) {}\n",
-                    cls, method);
-        }
-
-        // 4) unsupported → skip
-        return String.format(" // Skipped %s.%s\n", cls, method);
     }
 }
