@@ -21,7 +21,7 @@ public class MainFrame extends JFrame {
     private JButton btnSelectFolder;
     private JButton btnScan;
     private JButton btnGenerateAndFuzz;
-    private JButton btnGenerateUniversalAndFuzz;   // <-- NÚT MỚI
+    private JButton btnGenerateUniversalAndFuzz;   // Nut moi
     private JButton btnExportReport;
     private JButton btnExit;
 
@@ -45,14 +45,14 @@ public class MainFrame extends JFrame {
         btnSelectFolder = new JButton("Select Benchmark Folder");
         btnScan = new JButton("Scan");
         btnGenerateAndFuzz = new JButton("Generate & Fuzz");
-        btnGenerateUniversalAndFuzz = new JButton("Universal Fuzz");  // NEW BUTTON
+        btnGenerateUniversalAndFuzz = new JButton("Universal Fuzz");  // New button
         btnExportReport = new JButton("Export Report");
         btnExit = new JButton("Exit");
 
         top.add(btnSelectFolder);
         top.add(btnScan);
         top.add(btnGenerateAndFuzz);
-        top.add(btnGenerateUniversalAndFuzz); // ADD TO UI
+        top.add(btnGenerateUniversalAndFuzz); // Add to UI
         top.add(btnExportReport);
         top.add(btnExit);
 
@@ -70,7 +70,7 @@ public class MainFrame extends JFrame {
         btnSelectFolder.addActionListener(e -> selectFolder());
         btnScan.addActionListener(e -> scanFolder());
         btnGenerateAndFuzz.addActionListener(e -> generateAndFuzz());
-        btnGenerateUniversalAndFuzz.addActionListener(e -> generateUniversalAndFuzz()); // NEW ACTION
+        btnGenerateUniversalAndFuzz.addActionListener(e -> generateUniversalAndFuzz()); // New action
         btnExportReport.addActionListener(e -> exportReport());
         btnExit.addActionListener(e -> exitApp());
     }
@@ -86,7 +86,7 @@ public class MainFrame extends JFrame {
 
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             selectedFolder = chooser.getSelectedFile();
-            appendOutput("📁 Selected benchmark: " + selectedFolder.getAbsolutePath());
+            appendOutput("Selected benchmark: " + selectedFolder.getAbsolutePath());
         }
     }
 
@@ -97,11 +97,11 @@ public class MainFrame extends JFrame {
             return;
         }
 
-        appendOutput("🔎 Scanning benchmark Java files and methods...");
+        appendOutput("Scanning benchmark Java files and methods...");
 
         try {
             List<File> files = FileScanner.scanJavaFiles(selectedFolder);
-            appendOutput("📄 Java files found: " + files.size());
+            appendOutput("Java files found: " + files.size());
 
             int totalMethods = 0;
 
@@ -109,20 +109,20 @@ public class MainFrame extends JFrame {
                 try {
                     List<MethodInfo> methods = MethodScanner.scan(f);
                     for (MethodInfo mi : methods) {
-                        appendOutput("• " + mi);
+                        appendOutput("- " + mi);
                         totalMethods++;
                     }
                 } catch (Exception ex) {
-                    appendOutput("⚠ Skipped file: " + f.getName());
+                    appendOutput("Skipped file: " + f.getName());
                 }
             }
 
             List<MethodInfo> allMethods = MethodScanner.scanAll(selectedFolder);
-            appendOutput("📌 Total unique methods (scanAll): " + allMethods.size());
-            appendOutput("✅ Total benchmark methods found: " + totalMethods);
+            appendOutput("Total unique methods (scanAll): " + allMethods.size());
+            appendOutput("Total benchmark methods found: " + totalMethods);
 
         } catch (Exception e) {
-            appendOutput("❌ Scan error: " + e.getMessage());
+            appendOutput("Scan error: " + e.getMessage());
         }
     }
 
@@ -136,17 +136,26 @@ public class MainFrame extends JFrame {
         new Thread(() -> {
             try {
                 List<MethodInfo> allMethods = MethodScanner.scanAll(selectedFolder);
-                appendOutput("🎯 Target methods: " + allMethods.size());
+                appendOutput("Target methods: " + allMethods.size());
+                
+                // DEBUG: Hien thi vai methods dau tien
+                appendOutput("\nSample methods:");
+                for (int i = 0; i < Math.min(5, allMethods.size()); i++) {
+                    appendOutput("  - " + allMethods.get(i));
+                }
 
-                appendOutput("▶ Generating batch harness...");
+                appendOutput("\nGenerating batch harness...");
                 List<String> fuzzClasses = FuzzTestGenerator.generateMultipleClasses(allMethods);
-                appendOutput("✅ Generated fuzz harness: " + fuzzClasses.size() + " classes");
+                appendOutput("Generated fuzz harness: " + fuzzClasses.size() + " classes");
 
                 runMavenCompile();
-                runJazzer();
+                
+                // Truyen benchmark path vao Jazzer
+                runJazzer(selectedFolder.getAbsolutePath());
 
             } catch (Exception e) {
-                appendOutput("❌ Fuzz error: " + e.getMessage());
+                appendOutput("Fuzz error: " + e.getMessage());
+                e.printStackTrace();
             }
         }).start();
     }
@@ -160,25 +169,29 @@ public class MainFrame extends JFrame {
 
         new Thread(() -> {
             try {
-                appendOutput("🔄 Scanning methods...");
+                appendOutput("Scanning methods...");
                 List<MethodInfo> allMethods = MethodScanner.scanAll(selectedFolder);
+                appendOutput("Found " + allMethods.size() + " methods");
 
-                appendOutput("🛠 Generating Universal Fuzzer...");
+                appendOutput("Generating Universal Fuzzer...");
                 String className = UniversalFuzzTestGenerator.generateUniversalFuzzer(allMethods);
-                appendOutput("✅ Generated: " + className);
+                appendOutput("Generated: " + className);
 
                 runMavenCompile();
-                runJazzer();
+                
+                // Truyen benchmark path vao Jazzer
+                runJazzer(selectedFolder.getAbsolutePath());
 
             } catch (Exception e) {
-                appendOutput("❌ Error: " + e.getMessage());
+                appendOutput("Error: " + e.getMessage());
+                e.printStackTrace();
             }
         }).start();
     }
 
     // ---------------------- MAVEN COMPILE ----------------------
     private void runMavenCompile() throws Exception {
-        appendOutput("▶ Compiling classes (mvn test-compile)...");
+        appendOutput("Compiling classes (mvn test-compile)...");
 
         String mavenCmd = "D:\\apache-maven-3.8.8\\bin\\mvn.cmd";
         ProcessBuilder pb = new ProcessBuilder(mavenCmd, "test-compile");
@@ -195,14 +208,14 @@ public class MainFrame extends JFrame {
     }
 
     // ---------------------- RUN JAZZER ----------------------
-    private void runJazzer() throws Exception {
-        appendOutput("▶ Running Jazzer...");
-        FuzzingRunner.runAllGeneratedTests(30, this);
+    private void runJazzer(String benchmarkPath) throws Exception {
+        appendOutput("Running Jazzer with benchmark: " + benchmarkPath);
+        FuzzingRunner.runAllGeneratedTests(30, this, benchmarkPath);
 
-        appendOutput("✔ Jazzer finished");
+        appendOutput("Jazzer finished");
 
         for (File crash : CrashScanner.scan()) {
-            appendOutput("💥 Crash found: " + crash.getAbsolutePath());
+            appendOutput("Crash found: " + crash.getAbsolutePath());
         }
     }
 
@@ -214,9 +227,9 @@ public class MainFrame extends JFrame {
         if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
             try {
                 ReportGenerator.export(chooser.getSelectedFile());
-                appendOutput("✅ Report exported");
+                appendOutput("Report exported");
             } catch (Exception e) {
-                appendOutput("❌ Report error: " + e.getMessage());
+                appendOutput("Report error: " + e.getMessage());
             }
         }
     }
