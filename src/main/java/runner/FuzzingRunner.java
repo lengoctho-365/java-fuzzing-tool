@@ -6,22 +6,23 @@ import java.util.*;
 
 public class FuzzingRunner {
 
-    private static final String JAVA = "C:\\Users\\ASUS\\.jdks\\ms-11.0.29\\bin\\java.exe";
-    private static final String JAZZER_JAR = "C:\\Users\\ASUS\\jazzer\\jazzer_standalone.jar";
+    private static final String JAVA = "C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.17.10-hotspot\\bin\\java.exe";
+    private static final String JAZZER_JAR = "C:\\Tool_duan\\jazzer-windows\\jazzer_standalone.jar";
 
     /**
      * Run Jazzer for all generated tests with BENCHMARK in classpath
      */
     public static void runAllGeneratedTests(int timeSeconds, MainFrame ui, String benchmarkPath) {
 
-        // Chay Universal Fuzz neu co
-        File uni = new File("target/test-classes/fuzz/GeneratedUniversalFuzzTest.class");
-        if (uni.exists()) {
-            ui.appendOutput("\nRunning fuzz.GeneratedUniversalFuzzTest");
-            runSingle("fuzz.GeneratedUniversalFuzzTest", timeSeconds, ui, benchmarkPath);
+        //Chạy SimpleVerifyTest trước để kiểm tra Jazzer hoạt động
+        File simpleTest = new File("target/test-classes/fuzz/SimpleVerifyTest.class");
+        if (simpleTest.exists()) {
+            ui.appendOutput("\n Running fuzz.SimpleVerifyTest");
+            runSingle("fuzz.SimpleVerifyTest", timeSeconds, ui, benchmarkPath);
         } else {
-            ui.appendOutput("Universal fuzzer not found. Skipping.");
+            ui.appendOutput("SimpleVerifyTest not found. Skipping.");
         }
+
 
         // Chay tat ca GeneratedFuzzTest_X
         int index = 0;

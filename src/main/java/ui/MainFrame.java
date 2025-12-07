@@ -193,7 +193,7 @@ public class MainFrame extends JFrame {
     private void runMavenCompile() throws Exception {
         appendOutput("Compiling classes (mvn test-compile)...");
 
-        String mavenCmd = "D:\\apache-maven-3.8.8\\bin\\mvn.cmd";
+        String mavenCmd = "C:\\Tool_duan\\apache-maven-3.9.11-bin\\apache-maven-3.9.11\\bin\\mvn.cmd";
         ProcessBuilder pb = new ProcessBuilder(mavenCmd, "test-compile");
 
         pb.directory(new File(System.getProperty("user.dir")));
