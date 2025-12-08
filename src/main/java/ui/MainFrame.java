@@ -1,17 +1,23 @@
 package ui;
 
 import javax.swing.*;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStreamReader;
 import java.util.List;
+import java.util.ArrayList;
 
 import generator.FuzzTestGenerator;
 import generator.UniversalFuzzTestGenerator;
 import runner.FuzzingRunner;
 import scanner.FileScanner;
+import generator.EnhancedIndividualMethodFuzzer;
 import scanner.MethodInfo;
 import scanner.MethodScanner;
 import crash.CrashScanner;
 import report.ReportGenerator;
+
+
 
 public class MainFrame extends JFrame {
 
@@ -24,6 +30,8 @@ public class MainFrame extends JFrame {
     private JButton btnGenerateUniversalAndFuzz;   // Nut moi
     private JButton btnExportReport;
     private JButton btnExit;
+    private JButton btnFuzzEachMethod;
+
 
     private JTextArea txtOutput;
     private JScrollPane panelResult;
@@ -45,6 +53,11 @@ public class MainFrame extends JFrame {
         btnSelectFolder = new JButton("Select Benchmark Folder");
         btnScan = new JButton("Scan");
         btnGenerateAndFuzz = new JButton("Generate & Fuzz");
+
+// Trong phần tạo buttons:
+        btnFuzzEachMethod = new JButton("Fuzz Each Method");
+        top.add(btnFuzzEachMethod);
+        btnFuzzEachMethod.addActionListener(e -> fuzzEachMethod());
         btnGenerateUniversalAndFuzz = new JButton("Universal Fuzz");  // New button
         btnExportReport = new JButton("Export Report");
         btnExit = new JButton("Exit");
@@ -187,6 +200,205 @@ public class MainFrame extends JFrame {
                 e.printStackTrace();
             }
         }).start();
+    }
+    // ADD TO MainFrame.java
+
+
+// ========== ADD THESE METHODS BEFORE THE LAST } OF CLASS ==========
+
+    /**
+     * Fuzz EACH method separately to find ALL bugs
+     */
+    private void fuzzEachMethod() {
+        if (selectedFolder == null) {
+            JOptionPane.showMessageDialog(this, "Choose folder first.");
+            return;
+        }
+
+        // Ask for time per method
+        String timeInput = JOptionPane.showInputDialog(this,
+                "Time per method (seconds):", "30");
+
+        int timePerMethod = 30;
+        try {
+            timePerMethod = Integer.parseInt(timeInput);
+        } catch (NumberFormatException e) {
+            appendOutput("Invalid time, using default: 30s");
+        }
+
+        final int finalTime = timePerMethod;
+
+        new Thread(() -> {
+            try {
+                appendOutput("==============================================");
+                appendOutput("    FUZZING EACH METHOD INDIVIDUALLY");
+                appendOutput("==============================================");
+                appendOutput("Target folder: " + selectedFolder.getAbsolutePath());
+                appendOutput("Time per method: " + finalTime + "s");
+
+                // Scan all methods
+                appendOutput("\n[1/4] Scanning Java files...");
+                List<MethodInfo> allMethods = MethodScanner.scanAll(selectedFolder);
+                appendOutput("Found " + allMethods.size() + " total methods");
+
+                // Filter only VulnerableTest and ExtendedVulnerableTest
+                appendOutput("\n[2/4] Filtering target classes...");
+                List<MethodInfo> targetMethods = new ArrayList<>();
+                for (MethodInfo mi : allMethods) {
+                    if (mi.className.contains("VulnerableTest") ||
+                            mi.className.contains("ExtendedVulnerableTest")) {
+                        targetMethods.add(mi);
+                        appendOutput("  + " + mi.className + "." + mi.methodName);
+                    }
+                }
+
+                if (targetMethods.isEmpty()) {
+                    appendOutput("\nERROR: No VulnerableTest methods found!");
+                    appendOutput("Make sure you have VulnerableTest.java or ExtendedVulnerableTest.java");
+                    return;
+                }
+
+                appendOutput("\nTarget methods: " + targetMethods.size());
+
+                // Generate individual tests
+                appendOutput("\n[3/4] Generating individual fuzz tests...");
+                List<String> testClasses = EnhancedIndividualMethodFuzzer.generateIndividualTests(targetMethods);
+                appendOutput("Generated " + testClasses.size() + " fuzz test classes");
+
+                // Compile
+                appendOutput("\n[4/4] Compiling...");
+                runMavenCompile();
+                appendOutput("Compilation complete");
+
+                // Run fuzzing
+                appendOutput("\n==============================================");
+                appendOutput("    STARTING FUZZING - " + testClasses.size() + " TESTS");
+                appendOutput("==============================================\n");
+
+                int successCount = 0;
+                int crashCount = 0;
+                List<String> foundBugs = new ArrayList<>();
+
+                for (int i = 0; i < testClasses.size(); i++) {
+                    String testClass = testClasses.get(i);
+                    int methodNum = i + 1;
+
+                    appendOutput("\n");
+                    appendOutput("╔════════════════════════════════════════════════╗");
+                    appendOutput("║  TEST " + methodNum + "/" + testClasses.size() + ": " + testClass);
+                    appendOutput("╚════════════════════════════════════════════════╝");
+
+                    try {
+                        // Create temporary file to capture output
+                        File tempLog = File.createTempFile("fuzz_", ".log");
+
+                        boolean foundCrash = runSingleMethodFuzz(testClass, finalTime, tempLog);
+
+                        if (foundCrash) {
+                            crashCount++;
+                            foundBugs.add(testClass);
+                            appendOutput("CRASH FOUND!");
+                        } else {
+                            successCount++;
+                            appendOutput("No crash");
+                        }
+
+                    } catch (Exception e) {
+                        appendOutput("Error: " + e.getMessage());
+                    }
+                }
+
+                // Summary
+                appendOutput("\n");
+                appendOutput("==============================================");
+                appendOutput("           FUZZING COMPLETE");
+                appendOutput("==============================================");
+                appendOutput("Total tests: " + testClasses.size());
+                appendOutput("Successful: " + successCount);
+                appendOutput("Crashes found: " + crashCount);
+                appendOutput("");
+
+                if (crashCount > 0) {
+                    appendOutput("BUGS FOUND IN:");
+                    for (String bug : foundBugs) {
+                        appendOutput("  - " + bug);
+                    }
+                    appendOutput("\nCheck crash-* files for details");
+                } else {
+                    appendOutput("No crashes found - code seems safe!");
+                }
+
+                appendOutput("==============================================");
+
+            } catch (Exception e) {
+                appendOutput("ERROR: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    /**
+     * Helper method to run single fuzz test and detect crash
+     */
+    private boolean runSingleMethodFuzz(String testClass, int timeSeconds, File logFile) throws Exception {
+        String javaPath = "C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.17.10-hotspot\\bin\\java.exe";
+        String jazzerJar = "C:\\Tool_duan\\jazzer-windows\\jazzer_standalone.jar";
+
+        StringBuilder cpBuilder = new StringBuilder();
+        cpBuilder.append("target\\test-classes;");
+        cpBuilder.append("target\\classes;");
+        cpBuilder.append("target\\dependency\\*;");
+
+        if (selectedFolder != null) {
+            cpBuilder.append(selectedFolder.getAbsolutePath()).append(";");
+        }
+
+        cpBuilder.append(jazzerJar);
+
+        List<String> cmd = new ArrayList<>();
+        cmd.add(javaPath);
+        cmd.add("-cp");
+        cmd.add(cpBuilder.toString());
+        cmd.add("-Xmx2g");
+        cmd.add("-ea"); // Enable assertions
+        cmd.add("-Djazzer.hooks=false");
+        cmd.add("com.code_intelligence.jazzer.Jazzer");
+        cmd.add("--target_class=" + testClass);
+        cmd.add("--target_method=fuzzerTestOneInput");
+        cmd.add("-max_total_time=" + timeSeconds);
+        cmd.add("-max_len=4096");
+        cmd.add("-timeout=5");
+
+        ProcessBuilder pb = new ProcessBuilder(cmd);
+        pb.directory(new File(System.getProperty("user.dir")));
+        pb.redirectErrorStream(true);
+
+        Process p = pb.start();
+
+        boolean foundCrash = false;
+        try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+            String line;
+            while ((line = r.readLine()) != null) {
+                // Only log important lines
+                if (line.contains("=== BUG FOUND ===") ||
+                        line.contains("crash-") ||
+                        line.contains("FOUND BUG") ||
+                        line.contains("ERROR") ||
+                        line.contains("Exception")) {
+                    appendOutput(line);
+                    foundCrash = true;
+                }
+
+                // Log progress every 100 execs
+                if (line.contains("pulse") || line.matches(".*#\\d+.*")) {
+                    // Skip frequent progress lines
+                    continue;
+                }
+            }
+        }
+
+        p.waitFor();
+        return foundCrash;
     }
 
     // ---------------------- MAVEN COMPILE ----------------------

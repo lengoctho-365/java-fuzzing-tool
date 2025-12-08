@@ -73,24 +73,65 @@ public class FuzzTestGenerator {
         
         sb.append("    for (Method m : cls.getDeclaredMethods()) {\n");
         sb.append("      if (!m.getName().equals(t.m)) continue;\n");
-        sb.append("      if (m.getParameterCount() > 2) continue;\n");
+        
+        // THAY ĐỔI: cho phép nhiều parameters hơn
+        sb.append("      if (m.getParameterCount() > 5) continue;\n");
         sb.append("      m.setAccessible(true);\n");
         sb.append("      Object[] args = new Object[m.getParameterCount()];\n");
         sb.append("      Class<?>[] types = m.getParameterTypes();\n");
         sb.append("      boolean supported = true;\n");
         sb.append("      for (int i = 0; i < types.length; i++) {\n");
-        sb.append("        if (types[i] == String.class) args[i] = data.consumeString(256);\n");
-        sb.append("        else if (types[i] == byte[].class) args[i] = data.consumeBytes(512);\n");
-        sb.append("        else if (types[i] == int.class) args[i] = data.consumeInt();\n");
-        sb.append("        else { supported = false; break; }\n");
+        
+        // THÊM: hỗ trợ nhiều kiểu dữ liệu hơn
+        sb.append("        if (types[i] == String.class) {\n");
+        sb.append("          args[i] = data.consumeString(1024);\n"); // Tăng size
+        sb.append("        } else if (types[i] == byte[].class) {\n");
+        sb.append("          args[i] = data.consumeBytes(2048);\n");
+        sb.append("        } else if (types[i] == int.class) {\n");
+        sb.append("          args[i] = data.consumeInt();\n");
+        sb.append("        } else if (types[i] == long.class) {\n");
+        sb.append("          args[i] = data.consumeLong();\n");
+        sb.append("        } else if (types[i] == boolean.class) {\n");
+        sb.append("          args[i] = data.consumeBoolean();\n");
+        sb.append("        } else if (types[i] == double.class) {\n");
+        sb.append("          args[i] = data.consumeDouble();\n");
+        sb.append("        } else if (types[i] == float.class) {\n");
+        sb.append("          args[i] = data.consumeFloat();\n");
+        sb.append("        } else {\n");
+        sb.append("          args[i] = null;\n"); // Thử null thay vì skip
+        sb.append("        }\n");
         sb.append("      }\n");
+        
+        // THÊM: timeout protection
         sb.append("      if (!supported) continue;\n");
+        sb.append("      long startTime = System.currentTimeMillis();\n");
         sb.append("      try {\n");
         sb.append("        if (Modifier.isStatic(m.getModifiers())) m.invoke(null, args);\n");
         sb.append("        else if (instance != null) m.invoke(instance, args);\n");
+        
+        // THÊM: detect hangs
+        sb.append("        long elapsed = System.currentTimeMillis() - startTime;\n");
+        sb.append("        if (elapsed > 5000) {\n");
+        sb.append("          System.err.println(\"Method took too long: \" + t.m);\n");
+        sb.append("        }\n");
+        
         sb.append("      } catch (InvocationTargetException ite) {\n");
         sb.append("        Throwable cause = ite.getCause();\n");
-        sb.append("        if (cause instanceof Error) throw (Error) cause;\n");
+        
+        // THÊM: log chi tiết hơn
+        sb.append("        if (cause instanceof ArrayIndexOutOfBoundsException) {\n");
+        sb.append("          System.err.println(\"FOUND BUG: ArrayIndexOutOfBounds in \" + t.c + \".\" + t.m);\n");
+        sb.append("          throw (RuntimeException) cause;\n");
+        sb.append("        } else if (cause instanceof NullPointerException) {\n");
+        sb.append("          System.err.println(\"FOUND BUG: NullPointer in \" + t.c + \".\" + t.m);\n");
+        sb.append("          throw (RuntimeException) cause;\n");
+        sb.append("        } else if (cause instanceof ArithmeticException) {\n");
+        sb.append("          System.err.println(\"FOUND BUG: Arithmetic in \" + t.c + \".\" + t.m);\n");
+        sb.append("          throw (RuntimeException) cause;\n");
+        sb.append("        } else if (cause instanceof Error) {\n");
+        sb.append("          System.err.println(\"FOUND BUG: Error in \" + t.c + \".\" + t.m);\n");
+        sb.append("          throw (Error) cause;\n");
+        sb.append("        }\n");
         sb.append("      } catch (Throwable ignored) {}\n");
         sb.append("      break;\n");
         sb.append("    }\n");

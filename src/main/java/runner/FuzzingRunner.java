@@ -9,57 +9,43 @@ public class FuzzingRunner {
     private static final String JAVA = "C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.17.10-hotspot\\bin\\java.exe";
     private static final String JAZZER_JAR = "C:\\Tool_duan\\jazzer-windows\\jazzer_standalone.jar";
 
-    /**
-     * Run Jazzer for all generated tests with BENCHMARK in classpath
-     */
     public static void runAllGeneratedTests(int timeSeconds, MainFrame ui, String benchmarkPath) {
-
-        //Chạy SimpleVerifyTest trước để kiểm tra Jazzer hoạt động
         File simpleTest = new File("target/test-classes/fuzz/SimpleVerifyTest.class");
         if (simpleTest.exists()) {
-            ui.appendOutput("\n Running fuzz.SimpleVerifyTest");
+            ui.appendOutput("\n=== Running SimpleVerifyTest ===");
             runSingle("fuzz.SimpleVerifyTest", timeSeconds, ui, benchmarkPath);
-        } else {
-            ui.appendOutput("SimpleVerifyTest not found. Skipping.");
         }
 
-
-        // Chay tat ca GeneratedFuzzTest_X
         int index = 0;
         while (true) {
             String testClass = "fuzz.GeneratedFuzzTest_" + index;
             File classFile = new File("target/test-classes/fuzz/GeneratedFuzzTest_" + index + ".class");
 
             if (!classFile.exists()) {
-                if (index == 0) {
-                    ui.appendOutput("No generated fuzz tests found.");
-                }
+                if (index == 0) ui.appendOutput("No generated fuzz tests found.");
                 break;
             }
 
-            ui.appendOutput("\nRunning " + testClass);
+            ui.appendOutput("\n=== Running " + testClass + " ===");
             runSingle(testClass, timeSeconds, ui, benchmarkPath);
             index++;
         }
 
-        ui.appendOutput("\nAll fuzz tests finished.");
+        ui.appendOutput("\n=== All fuzz tests finished ===");
     }
 
     private static void runSingle(String testClass, int timeSeconds, MainFrame ui, String benchmarkPath) {
         try {
-            // Build classpath - bat buoc phai co benchmark
             StringBuilder cpBuilder = new StringBuilder();
             cpBuilder.append("target\\test-classes;");
             cpBuilder.append("target\\classes;");
             cpBuilder.append("target\\dependency\\*;");
             
-            // Them benchmark path
             if (benchmarkPath != null && !benchmarkPath.isEmpty()) {
                 File benchmarkDir = new File(benchmarkPath);
                 if (benchmarkDir.exists()) {
                     cpBuilder.append(benchmarkPath).append(";");
                     
-                    // Neu co thu muc build hoac bin trong benchmark
                     File buildDir = new File(benchmarkDir, "build/classes");
                     if (buildDir.exists()) {
                         cpBuilder.append(buildDir.getAbsolutePath()).append(";");
@@ -70,9 +56,7 @@ public class FuzzingRunner {
                         cpBuilder.append(binDir.getAbsolutePath()).append(";");
                     }
                     
-                    ui.appendOutput("Benchmark added to classpath: " + benchmarkPath);
-                } else {
-                    ui.appendOutput("Warning: Benchmark path not found: " + benchmarkPath);
+                    ui.appendOutput("✓ Benchmark added: " + benchmarkPath);
                 }
             }
             
@@ -84,19 +68,38 @@ public class FuzzingRunner {
             cmd.add("-cp");
             cmd.add(cp);
             
-            // Them debug flag
+            // THÊM: memory settings
+            cmd.add("-Xmx2g"); // Tăng heap size
+            cmd.add("-XX:+UseG1GC"); // Better GC
+            
             cmd.add("-Djazzer.hooks=false");
             
             cmd.add("com.code_intelligence.jazzer.Jazzer");
             cmd.add("--target_class=" + testClass);
             cmd.add("--target_method=fuzzerTestOneInput");
+            
+            // THÊM: aggressive settings
             cmd.add("-max_total_time=" + timeSeconds);
+            cmd.add("-runs=1000000"); // Số lần chạy tối đa
+            cmd.add("-max_len=8192"); // Độ dài input tối đa
+            cmd.add("-len_control=1000"); // Control length strategy
+            cmd.add("-timeout=10"); // Timeout mỗi test case (giây)
+            
+            // THÊM: coverage và mutation settings
+            cmd.add("-use_value_profile=1"); // Track value comparisons
+            cmd.add("-reduce_inputs=1"); // Minimize test cases
+            
             cmd.add("--coverage_report=coverage_" + testClass.replace(".", "_") + ".html");
             
-            // Them instrumentation cho benchmark
             if (benchmarkPath != null && !benchmarkPath.isEmpty()) {
                 cmd.add("--instrumentation_includes=org.owasp.benchmark.**");
+                cmd.add("--custom_hooks=org.owasp.benchmark.**"); // Hook vào benchmark code
             }
+            
+            // THÊM: corpus directory
+            File corpusDir = new File("corpus_" + testClass.replace(".", "_"));
+            if (!corpusDir.exists()) corpusDir.mkdirs();
+            cmd.add(corpusDir.getAbsolutePath());
 
             ui.appendOutput("Command: " + String.join(" ", cmd));
             ui.appendOutput("--------------------------------------------------");
@@ -110,22 +113,45 @@ public class FuzzingRunner {
             try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
                 String line;
                 int lineCount = 0;
+                boolean foundCrash = false;
+                
                 while ((line = r.readLine()) != null) {
                     ui.appendOutput(line);
                     lineCount++;
                     
-                    // Canh bao neu khong co coverage
-                    if (line.contains("0 new") && lineCount > 20) {
-                        ui.appendOutput("Warning: No new coverage detected. Check if benchmark classes are in classpath!");
+                    // Detect issues
+                    if (line.contains("FOUND BUG")) {
+                        foundCrash = true;
+                        ui.appendOutput("!!! BUG DETECTED !!!");
                     }
+                    
+                    if (line.contains("0 new") && lineCount > 20) {
+                        ui.appendOutput("Warning: No new coverage - check classpath");
+                    }
+                    
+                    if (line.contains("corp:") && !line.contains("corp: 1/1b")) {
+                        ui.appendOutput("Good: Corpus growing");
+                    }
+                }
+                
+                if (foundCrash) {
+                    ui.appendOutput("\nCRASH FOUND IN " + testClass);
                 }
             }
 
             int exitCode = p.waitFor();
-            ui.appendOutput("Process exited with code: " + exitCode);
+            ui.appendOutput("Process exited: " + exitCode);
+            
+            // Analyze corpus
+            if (corpusDir.exists()) {
+                File[] corpusFiles = corpusDir.listFiles();
+                if (corpusFiles != null) {
+                    ui.appendOutput("Corpus size: " + corpusFiles.length + " files");
+                }
+            }
 
         } catch (Exception e) {
-            ui.appendOutput("Jazzer error in " + testClass + ": " + e.getMessage());
+            ui.appendOutput("ERROR in " + testClass + ": " + e.getMessage());
             e.printStackTrace();
         }
     }
