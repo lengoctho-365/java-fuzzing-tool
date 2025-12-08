@@ -6,7 +6,8 @@ import java.util.*;
 public class GeneratedFuzzTest_0 {
   static class Target { final String c, m; Target(String c, String m) { this.c=c; this.m=m; }}
   static Target[] targets = new Target[] {
-    new Target("org.example.Main", "main")
+    new Target("org.owasp.benchmark.testcode.BenchmarkTest00001", "doGet"),
+    new Target("org.owasp.benchmark.testcode.BenchmarkTest00001", "doPost")
   };
 
   public static void fuzzerTestOneInput(FuzzedDataProvider data) {

@@ -1,8 +1,8 @@
 package org.example;
 
 /**
- * Class đơn giản để test fuzzer
- * Đặt file này vào: src/main/java/org/example/Test.java
+ * Simple test class for fuzzer
+ * Location: src/main/java/org/example/Test.java
  */
 public class Test {
     
@@ -32,7 +32,7 @@ public class Test {
             return;
         }
         
-        // Test với nhiều tham số
+        // Test with multiple parameters
         if (input.length() > value) {
             System.out.println("Input longer than value");
         }
