@@ -31,6 +31,7 @@ public class MainFrame extends JFrame {
     private JButton btnExportReport;
     private JButton btnExit;
     private JButton btnFuzzEachMethod;
+    private JButton btnSecurityFuzz;
 
 
     private JTextArea txtOutput;
@@ -86,6 +87,10 @@ public class MainFrame extends JFrame {
         btnGenerateUniversalAndFuzz.addActionListener(e -> generateUniversalAndFuzz()); // New action
         btnExportReport.addActionListener(e -> exportReport());
         btnExit.addActionListener(e -> exitApp());
+
+        btnSecurityFuzz = new JButton("Security Fuzzing");
+        top.add(btnSecurityFuzz);
+        btnSecurityFuzz.addActionListener(e -> runSecurityFuzzing());
     }
 
     public void appendOutput(String text) {
@@ -443,6 +448,147 @@ public class MainFrame extends JFrame {
             } catch (Exception e) {
                 appendOutput("Report error: " + e.getMessage());
             }
+        }
+    }
+
+    private void runSecurityFuzzing() {
+        if (selectedFolder == null) {
+            JOptionPane.showMessageDialog(this, "Choose benchmark folder first.");
+            return;
+        }
+        
+        String timeInput = JOptionPane.showInputDialog(this, 
+            "Fuzzing time per test (seconds):", "60");
+        
+        int timePerTest = 60;
+        try {
+            timePerTest = Integer.parseInt(timeInput);
+        } catch (NumberFormatException e) {
+            appendOutput("Invalid time, using default: 60s");
+        }
+        
+        final int finalTime = timePerTest;
+        
+        new Thread(() -> {
+            try {
+                appendOutput("══════════════════════════════════════════════════");
+                appendOutput("    SECURITY VULNERABILITY FUZZING");
+                appendOutput("══════════════════════════════════════════════════");
+                
+                // Step 1: Scan methods
+                appendOutput("\n[1/5] Scanning for security-relevant methods...");
+                List<MethodInfo> allMethods = MethodScanner.scanAll(selectedFolder);
+                appendOutput("Found " + allMethods.size() + " total methods");
+                
+                // Step 2: Generate security tests
+                appendOutput("\n[2/5] Generating security fuzz tests...");
+                List<String> securityTests = SecurityAwareFuzzTestGenerator
+                    .generateSecurityTests(allMethods);
+                appendOutput("Generated " + securityTests.size() + " security tests");
+                
+                if (securityTests.isEmpty()) {
+                    appendOutput("No security-relevant methods found!");
+                    return;
+                }
+                
+                // Step 3: Compile
+                appendOutput("\n[3/5] Compiling...");
+                runMavenCompile();
+                
+                // Step 4: Run fuzzing
+                appendOutput("\n[4/5] Running security fuzzing...");
+                int vulnCount = 0;
+                
+                for (int i = 0; i < securityTests.size(); i++) {
+                    String testClass = securityTests.get(i);
+                    appendOutput("\n[" + (i+1) + "/" + securityTests.size() + "] " + testClass);
+                    
+                    boolean foundVuln = runSingleSecurityFuzz(testClass, finalTime);
+                    if (foundVuln) {
+                        vulnCount++;
+                        appendOutput("  ⚠️  VULNERABILITY FOUND!");
+                    }
+                }
+                
+                // Step 5: Generate report
+                appendOutput("\n[5/5] Generating security report...");
+                File txtReport = new File("security-report.txt");
+                File htmlReport = new File("security-report.html");
+                
+                SecurityReportGenerator.generateReport(txtReport);
+                SecurityReportGenerator.generateHTMLReport(htmlReport);
+                
+                appendOutput("\n══════════════════════════════════════════════════");
+                appendOutput("    SECURITY FUZZING COMPLETE");
+                appendOutput("══════════════════════════════════════════════════");
+                appendOutput("Total vulnerabilities found: " + vulnCount);
+                appendOutput("Reports generated:");
+                appendOutput("  • " + txtReport.getAbsolutePath());
+                appendOutput("  • " + htmlReport.getAbsolutePath());
+                appendOutput("══════════════════════════════════════════════════");
+                
+            } catch (Exception e) {
+                appendOutput("ERROR: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    private boolean runSingleSecurityFuzz(String testClass, int timeSeconds) {
+        try {
+            String javaPath = "C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.17.10-hotspot\\bin\\java.exe";
+            String jazzerJar = "C:\\Tool_duan\\jazzer-windows\\jazzer_standalone.jar";
+            
+            StringBuilder cpBuilder = new StringBuilder();
+            cpBuilder.append("target\\test-classes;");
+            cpBuilder.append("target\\classes;");
+            cpBuilder.append("target\\dependency\\*;");
+            
+            if (selectedFolder != null) {
+                cpBuilder.append(selectedFolder.getAbsolutePath()).append(";");
+            }
+            
+            cpBuilder.append(jazzerJar);
+            
+            List<String> cmd = new ArrayList<>();
+            cmd.add(javaPath);
+            cmd.add("-cp");
+            cmd.add(cpBuilder.toString());
+            cmd.add("-Xmx2g");
+            cmd.add("-ea");
+            cmd.add("-Djazzer.hooks=false");
+            cmd.add("com.code_intelligence.jazzer.Jazzer");
+            cmd.add("--target_class=" + testClass);
+            cmd.add("--target_method=fuzzerTestOneInput");
+            cmd.add("-max_total_time=" + timeSeconds);
+            cmd.add("-max_len=4096");
+            cmd.add("-timeout=10");
+            
+            ProcessBuilder pb = new ProcessBuilder(cmd);
+            pb.directory(new File(System.getProperty("user.dir")));
+            pb.redirectErrorStream(true);
+            
+            Process p = pb.start();
+            
+            boolean foundVuln = false;
+            try (BufferedReader r = new BufferedReader(
+                    new InputStreamReader(p.getInputStream()))) {
+                String line;
+                while ((line = r.readLine()) != null) {
+                    if (line.contains("SECURITY VULNERABILITY FOUND") ||
+                        line.contains("SecurityException")) {
+                        foundVuln = true;
+                        appendOutput("    " + line);
+                    }
+                }
+            }
+            
+            p.waitFor();
+            return foundVuln;
+            
+        } catch (Exception e) {
+            appendOutput("    Error: " + e.getMessage());
+            return false;
         }
     }
 

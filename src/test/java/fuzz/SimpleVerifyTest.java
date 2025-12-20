@@ -7,11 +7,11 @@ import com.code_intelligence.jazzer.api.*;
  *
  * Chạy test này trước để đảm bảo Jazzer setup đúng:
  *
- * java -cp "target/test-classes;target/dependency/*;C:\Users\ASUS\jazzer\jazzer_standalone.jar" \
- *   com.code_intelligence.jazzer.Jazzer \
- *   --target_class=fuzz.SimpleVerifyTest \
- *   --target_method=fuzzerTestOneInput \
- *   -max_total_time=10
+ java -cp "target/test-classes;target/dependency/*;C:\Users\ASUS\jazzer\jazzer_standalone.jar" \
+    com.code_intelligence.jazzer.Jazzer \
+    --target_class=fuzz.SimpleVerifyTest \
+    --target_method=fuzzerTestOneInput \
+    -max_total_time=10
  */
 public class SimpleVerifyTest {
     
