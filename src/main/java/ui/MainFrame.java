@@ -16,7 +16,9 @@ import scanner.MethodInfo;
 import scanner.MethodScanner;
 import crash.CrashScanner;
 import report.ReportGenerator;
-
+import generator.SecurityAwareFuzzTestGenerator;
+import report.SecurityReportGenerator;
+import java.lang.String;
 
 
 public class MainFrame extends JFrame {
@@ -436,17 +438,21 @@ public class MainFrame extends JFrame {
         }
     }
 
-    // ---------------------- EXPORT REPORT ----------------------
     private void exportReport() {
         JFileChooser chooser = new JFileChooser();
         chooser.setSelectedFile(new File("fuzz-report.txt"));
 
         if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
             try {
-                ReportGenerator.export(chooser.getSelectedFile());
-                appendOutput("Report exported");
+                String uiContent = txtOutput.getText();
+
+                ReportGenerator.export(chooser.getSelectedFile(), uiContent);
+
+                appendOutput("\nReport exported successfully to: "
+                        + chooser.getSelectedFile().getAbsolutePath() + "\n");
             } catch (Exception e) {
-                appendOutput("Report error: " + e.getMessage());
+                appendOutput("Report export failed: " + e.getMessage() + "\n");
+                e.printStackTrace();
             }
         }
     }

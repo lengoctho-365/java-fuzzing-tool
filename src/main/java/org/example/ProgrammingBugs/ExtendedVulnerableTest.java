@@ -15,27 +15,27 @@ public class ExtendedVulnerableTest {
         int result = 100 / number; // Crash when number = 0
         System.out.println(result);
     }
-    
+
     public void moduloByZero(String input) {
         int num = Integer.parseInt(input);
         int result = 100 % num; // Crash when num = 0
         System.out.println(result);
     }
     
-    // ============ CATEGORY 2: ARRAY ERRORS ============
+     //============ CATEGORY 2: ARRAY ERRORS ============
     
     public void arrayIndexError(int index) {
         int[] array = {1, 2, 3, 4, 5};
         int value = array[index]; // Crash when index < 0 or >= 5
         System.out.println(value);
     }
-    
+
     public void arrayIndexFromString(String input) {
         int[] array = new int[10];
         int index = input.length(); // Crash when length >= 10
         array[index] = 42;
     }
-    
+
     public void negativeArraySize(int size) {
         int[] array = new int[size]; // Crash when size < 0
         System.out.println(array.length);
