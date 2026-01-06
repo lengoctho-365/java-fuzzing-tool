@@ -14,6 +14,7 @@ import scanner.FileScanner;
 import generator.EnhancedIndividualMethodFuzzer;
 import scanner.MethodInfo;
 import scanner.MethodScanner;
+import generator.TypeParser; 
 import crash.CrashScanner;
 import report.ReportGenerator;
 import generator.SecurityAwareFuzzTestGenerator;
