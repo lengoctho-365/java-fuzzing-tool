@@ -1,58 +1,154 @@
-PS C:\Users\ADMIN\OneDrive\Documents\java-fuzzing-tool> mvn clean compile test-compile
-[INFO] Scanning for projects...
-[INFO] 
-[INFO] ----------------------< org.example:fuzzing-tool >----------------------
-[INFO] Building fuzzing-tool 1.0-SNAPSHOT
-[INFO]   from pom.xml
-[INFO] --------------------------------[ jar ]---------------------------------
-[INFO] 
-[INFO] --- clean:3.2.0:clean (default-clean) @ fuzzing-tool ---
-[INFO] Deleting C:\Users\ADMIN\OneDrive\Documents\java-fuzzing-tool\target
-[INFO] 
-[INFO] --- resources:3.3.1:resources (default-resources) @ fuzzing-tool ---
-[INFO] skip non existing resourceDirectory C:\Users\ADMIN\OneDrive\Documents\java-fuzzing-tool\src\main\resources
-[INFO]
-[INFO] --- compiler:3.13.0:compile (default-compile) @ fuzzing-tool ---
-[INFO] Recompiling the module because of changed source code.
-[INFO] Compiling 13 source files with javac [debug target 11] to target\classes
-[INFO] -------------------------------------------------------------
-[WARNING] COMPILATION WARNING :
-[INFO] -------------------------------------------------------------
-[WARNING] system modules path not set in conjunction with -source 11
-[INFO] 1 warning
-[INFO] -------------------------------------------------------------
-[INFO] -------------------------------------------------------------
-[ERROR] COMPILATION ERROR :
-[INFO] -------------------------------------------------------------
-[ERROR] /C:/Users/ADMIN/OneDrive/Documents/java-fuzzing-tool/src/main/java/generator/FuzzTestGenerator.java:[9,8] class ImprovedFuzzTestGenerator is public, should be declared in a file named ImprovedFuzzTestGenerator.java
-[ERROR] /C:/Users/ADMIN/OneDrive/Documents/java-fuzzing-tool/src/main/java/ui/MainFrame.java:[7,17] cannot access generator.FuzzTestGenerator
-  bad source file: C:\Users\ADMIN\OneDrive\Documents\java-fuzzing-tool\src\main\java\generator\FuzzTestGenerator.java
-    file does not contain class generator.FuzzTestGenerator
-    Please remove or make sure it appears in the correct subdirectory of the sourcepath.
-[ERROR] /C:/Users/ADMIN/OneDrive/Documents/java-fuzzing-tool/src/main/java/ui/MainFrame.java:[148,44] cannot find symbol
-  symbol:   variable FuzzTestGenerator
-  location: class ui.MainFrame
-[INFO] 3 errors
-[INFO] -------------------------------------------------------------
-[INFO] ------------------------------------------------------------------------
-[INFO] BUILD FAILURE
-[INFO] ------------------------------------------------------------------------
-[INFO] Total time:  2.029 s
-[INFO] Finished at: 2025-12-08T14:06:08+07:00
-[INFO] ------------------------------------------------------------------------
-[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.13.0:compile (default-compile) on project fuzzing-tool: Compilation failure: Compilation failure:
-[ERROR] /C:/Users/ADMIN/OneDrive/Documents/java-fuzzing-tool/src/main/java/generator/FuzzTestGenerator.java:[9,8] class ImprovedFuzzTestGenerator is public, should be declared in a file named ImprovedFuzzTestGenerator.java
-[ERROR] /C:/Users/ADMIN/OneDrive/Documents/java-fuzzing-tool/src/main/java/ui/MainFrame.java:[7,17] cannot access generator.FuzzTestGenerator
-[ERROR]   bad source file: C:\Users\ADMIN\OneDrive\Documents\java-fuzzing-tool\src\main\java\generator\FuzzTestGenerator.java
-[ERROR]     file does not contain class generator.FuzzTestGenerator
-[ERROR]     Please remove or make sure it appears in the correct subdirectory of the sourcepath.
-[ERROR] /C:/Users/ADMIN/OneDrive/Documents/java-fuzzing-tool/src/main/java/ui/MainFrame.java:[148,44] cannot find symbol
-[ERROR]   symbol:   variable FuzzTestGenerator
-[ERROR]   location: class ui.MainFrame
-[ERROR] -> [Help 1]
-[ERROR]
-[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
-[ERROR] Re-run Maven using the -X switch to enable full debug logging.
-[ERROR]
-[ERROR] For more information about the errors and possible solutions, please read the following articles:
-[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="
+           http://maven.apache.org/POM/4.0.0
+           http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.example</groupId>
+    <artifactId>fuzzing-tool</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.code-intelligence</groupId>
+            <artifactId>jazzer-api</artifactId>
+            <version>0.19.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>4.0.1</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
+            <version>5.3.33</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.javaparser</groupId>
+            <artifactId>javaparser-core</artifactId>
+            <version>3.25.8</version>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>1.7.36</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- ========================================== -->
+        <!-- THÊM APACHE COMMONS LANG - REQUIRED!      -->
+        <!-- ========================================== -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.14.0</version>
+        </dependency>
+
+        <!-- ========================================== -->
+        <!-- THÊM APACHE COMMONS TEXT - For StringUtils dependencies -->
+        <!-- ========================================== -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>1.11.0</version>
+        </dependency>
+
+        <!-- ========================================== -->
+        <!-- THÊM các dependencies phổ biến khác       -->
+        <!-- ========================================== -->
+        
+        <!-- Apache Commons Collections -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-collections4</artifactId>
+            <version>4.4</version>
+        </dependency>
+
+        <!-- Apache Commons IO -->
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.15.1</version>
+        </dependency>
+
+        <!-- Guava (Google Core Libraries) -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>33.0.0-jre</version>
+        </dependency>
+
+        <!-- Gson (Google JSON) -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+        </dependency>
+
+        <!-- Jsoup (HTML Parser) -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.17.2</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.1.2</version>
+                <configuration>
+                    <testFailureIgnore>true</testFailureIgnore>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>copy</id>
+                        <phase>test-compile</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/dependency</outputDirectory>
+                            <includeScope>test</includeScope>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+        </plugins>
+    </build>
+
+</project>

@@ -1,13 +1,17 @@
 package generator;
 
 import scanner.MethodInfo;
+import generator.TypeParser;
+import generator.TypeParser.ParsedType;
+import generator.CollectionCodeGenerator;
 import java.io.File;
 import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Enhanced version - supports multiple parameter types and exceptions
+ * Enhanced version - supports Collections, Maps, and Generic Types
+ * New: List<String>, ArrayList<Integer>, Map<String,Integer>, etc.
  */
 public class EnhancedIndividualMethodFuzzer {
 
@@ -16,7 +20,13 @@ public class EnhancedIndividualMethodFuzzer {
         
         int index = 0;
         for (MethodInfo mi : methods) {
-            // Skip if method has too many complex parameters
+            // Check if method parameters are supported
+            if (!areParametersSupported(mi)) {
+                System.out.println("Skipping " + mi.methodName + " - unsupported parameters");
+                continue;
+            }
+            
+            // Skip if too many parameters
             if (mi.paramTypes.size() > 5) {
                 System.out.println("Skipping " + mi.methodName + " - too many params");
                 continue;
@@ -29,7 +39,22 @@ public class EnhancedIndividualMethodFuzzer {
         }
         
         System.out.println("Generated " + output.size() + " individual fuzz tests");
+        System.out.println("Support for Collections: List, ArrayList, Set");
+        System.out.println("Support for Maps: Map, HashMap");
+        System.out.println("Support for Generic Types: <String>, <Integer>, etc.");
         return output;
+    }
+    
+    /**
+     * Check if all parameters are supported
+     */
+    private static boolean areParametersSupported(MethodInfo mi) {
+        for (String paramType : mi.paramTypes) {
+            if (!TypeParser.isSupported(paramType)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static String generateSingleMethodTest(MethodInfo mi, String className) throws Exception {
@@ -46,6 +71,7 @@ public class EnhancedIndividualMethodFuzzer {
         sb.append("/**\n");
         sb.append(" * Target: ").append(mi.className).append(".").append(mi.methodName).append("\n");
         sb.append(" * Params: ").append(mi.paramTypes).append("\n");
+        sb.append(" * Enhanced: Supports Collections and Generic Types\n");
         sb.append(" */\n");
         sb.append("public class ").append(className).append(" {\n\n");
 
@@ -57,21 +83,22 @@ public class EnhancedIndividualMethodFuzzer {
         sb.append("      Object instance = ctor.newInstance();\n\n");
 
         // Create parameter types
-        sb.append("      // Parameter types\n");
+        sb.append("      // Parameter types (with generics)\n");
         sb.append("      Class<?>[] paramTypes = new Class<?>[] {");
         for (int i = 0; i < mi.paramTypes.size(); i++) {
             if (i > 0) sb.append(", ");
             String type = mi.paramTypes.get(i);
-            sb.append(getClassLiteral(type));
+            sb.append(CollectionCodeGenerator.getClassLiteral(type));
         }
         sb.append("};\n\n");
 
-        // Create arguments
-        sb.append("      // Generate arguments\n");
+        // Create arguments - IMPROVED
+        sb.append("      // Generate arguments (including collections)\n");
         sb.append("      Object[] args = new Object[").append(mi.paramTypes.size()).append("];\n");
         for (int i = 0; i < mi.paramTypes.size(); i++) {
             String type = mi.paramTypes.get(i);
-            sb.append("      ").append(generateArgumentCode(i, type, "data")).append("\n");
+            String code = CollectionCodeGenerator.generateCode(i, type, "data");
+            sb.append("      ").append(code).append("\n");
         }
 
         sb.append("\n");
@@ -115,73 +142,5 @@ public class EnhancedIndividualMethodFuzzer {
         }
 
         return "fuzz." + className;
-    }
-
-    private static String getClassLiteral(String type) {
-        switch (type) {
-            case "int": return "int.class";
-            case "long": return "long.class";
-            case "double": return "double.class";
-            case "float": return "float.class";
-            case "boolean": return "boolean.class";
-            case "byte": return "byte.class";
-            case "short": return "short.class";
-            case "char": return "char.class";
-            case "java.lang.String": return "String.class";
-            case "java.lang.Object": return "Object.class";
-            default:
-                // For other classes
-                if (type.startsWith("java.")) {
-                    return type.substring(type.lastIndexOf('.') + 1) + ".class";
-                }
-                return type + ".class";
-        }
-    }
-
-    private static String generateArgumentCode(int index, String type, String dataProvider) {
-        switch (type) {
-            case "java.lang.String":
-                return "args[" + index + "] = " + dataProvider + ".consumeString(1024);";
-            
-            case "int":
-                return "args[" + index + "] = " + dataProvider + ".consumeInt();";
-            
-            case "long":
-                return "args[" + index + "] = " + dataProvider + ".consumeLong();";
-            
-            case "double":
-                return "args[" + index + "] = " + dataProvider + ".consumeDouble();";
-            
-            case "float":
-                return "args[" + index + "] = " + dataProvider + ".consumeFloat();";
-            
-            case "boolean":
-                return "args[" + index + "] = " + dataProvider + ".consumeBoolean();";
-            
-            case "byte":
-                return "args[" + index + "] = (byte) " + dataProvider + ".consumeInt();";
-            
-            case "short":
-                return "args[" + index + "] = (short) " + dataProvider + ".consumeInt();";
-            
-            case "char":
-                return "args[" + index + "] = (char) " + dataProvider + ".consumeInt();";
-            
-            case "byte[]":
-                return "args[" + index + "] = " + dataProvider + ".consumeBytes(2048);";
-            
-            case "java.lang.Object":
-                // Create random object types
-                return "args[" + index + "] = " + dataProvider + ".pickValue(new Object[]{\n" +
-                       "        " + dataProvider + ".consumeString(100),\n" +
-                       "        " + dataProvider + ".consumeInt(),\n" +
-                       "        " + dataProvider + ".consumeBoolean(),\n" +
-                       "        null\n" +
-                       "      });";
-            
-            default:
-                // Default: null or string
-                return "args[" + index + "] = null; // Unsupported type: " + type;
-        }
     }
 }

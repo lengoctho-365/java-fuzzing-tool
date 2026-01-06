@@ -210,19 +210,12 @@ public class MainFrame extends JFrame {
     }
     // ADD TO MainFrame.java
 
-
-// ========== ADD THESE METHODS BEFORE THE LAST } OF CLASS ==========
-
-    /**
-     * Fuzz EACH method separately to find ALL bugs
-     */
     private void fuzzEachMethod() {
         if (selectedFolder == null) {
             JOptionPane.showMessageDialog(this, "Choose folder first.");
             return;
         }
 
-        // Ask for time per method
         String timeInput = JOptionPane.showInputDialog(this,
                 "Time per method (seconds):", "30");
 
@@ -243,41 +236,54 @@ public class MainFrame extends JFrame {
                 appendOutput("Target folder: " + selectedFolder.getAbsolutePath());
                 appendOutput("Time per method: " + finalTime + "s");
 
-                // Scan all methods
                 appendOutput("\n[1/4] Scanning Java files...");
                 List<MethodInfo> allMethods = MethodScanner.scanAll(selectedFolder);
                 appendOutput("Found " + allMethods.size() + " total methods");
 
-                // Filter only VulnerableTest and ExtendedVulnerableTest
-                appendOutput("\n[2/4] Filtering target classes...");
+                appendOutput("\n[2/4] Preparing target methods...");
                 List<MethodInfo> targetMethods = new ArrayList<>();
+                
                 for (MethodInfo mi : allMethods) {
-                    if (mi.className.contains("VulnerableTest") ||
-                            mi.className.contains("ExtendedVulnerableTest")) {
+                    if (mi.paramTypes.size() > 5) {
+                        appendOutput("  Skipped (too many params): " + mi.className + "." + mi.methodName);
+                        continue;
+                    }
+                    
+                    boolean canFuzz = true;
+                    for (String paramType : mi.paramTypes) {
+                        if (!TypeParser.isSupported(paramType)) {
+                            appendOutput("  Skipped (unsupported type): " + mi.className + "." + mi.methodName 
+                                       + " [" + paramType + "]");
+                            canFuzz = false;
+                            break;
+                        }
+                    }
+                    
+                    if (canFuzz) {
                         targetMethods.add(mi);
-                        appendOutput("  + " + mi.className + "." + mi.methodName);
+                        appendOutput("  Target: " + mi.className + "." + mi.methodName);
                     }
                 }
 
                 if (targetMethods.isEmpty()) {
-                    appendOutput("\nERROR: No VulnerableTest methods found!");
-                    appendOutput("Make sure you have VulnerableTest.java or ExtendedVulnerableTest.java");
+                    appendOutput("\nERROR: No fuzzable methods found!");
+                    appendOutput("Possible reasons:");
+                    appendOutput("  - All methods have too many parameters (>5)");
+                    appendOutput("  - All methods have unsupported parameter types");
+                    appendOutput("  - No public methods found");
                     return;
                 }
 
-                appendOutput("\nTarget methods: " + targetMethods.size());
+                appendOutput("\nTarget methods: " + targetMethods.size() + "/" + allMethods.size());
 
-                // Generate individual tests
                 appendOutput("\n[3/4] Generating individual fuzz tests...");
                 List<String> testClasses = EnhancedIndividualMethodFuzzer.generateIndividualTests(targetMethods);
                 appendOutput("Generated " + testClasses.size() + " fuzz test classes");
 
-                // Compile
                 appendOutput("\n[4/4] Compiling...");
                 runMavenCompile();
                 appendOutput("Compilation complete");
 
-                // Run fuzzing
                 appendOutput("\n==============================================");
                 appendOutput("    STARTING FUZZING - " + testClasses.size() + " TESTS");
                 appendOutput("==============================================\n");
@@ -291,14 +297,11 @@ public class MainFrame extends JFrame {
                     int methodNum = i + 1;
 
                     appendOutput("\n");
-                    appendOutput("╔════════════════════════════════════════════════╗");
-                    appendOutput("║  TEST " + methodNum + "/" + testClasses.size() + ": " + testClass);
-                    appendOutput("╚════════════════════════════════════════════════╝");
+                    appendOutput("TEST " + methodNum + "/" + testClasses.size() + ": " + testClass);
+                    appendOutput("--------------------------------------------------");
 
                     try {
-                        // Create temporary file to capture output
                         File tempLog = File.createTempFile("fuzz_", ".log");
-
                         boolean foundCrash = runSingleMethodFuzz(testClass, finalTime, tempLog);
 
                         if (foundCrash) {
@@ -315,7 +318,6 @@ public class MainFrame extends JFrame {
                     }
                 }
 
-                // Summary
                 appendOutput("\n");
                 appendOutput("==============================================");
                 appendOutput("           FUZZING COMPLETE");
@@ -332,7 +334,7 @@ public class MainFrame extends JFrame {
                     }
                     appendOutput("\nCheck crash-* files for details");
                 } else {
-                    appendOutput("No crashes found - code seems safe!");
+                    appendOutput("No crashes found");
                 }
 
                 appendOutput("==============================================");

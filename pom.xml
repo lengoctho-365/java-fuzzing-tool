@@ -13,13 +13,11 @@
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
-        <!-- FIX ENCODING - THÊM DÒNG NÀY -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
     <dependencies>
-        <!-- Jazzer API for fuzz testing -->
         <dependency>
             <groupId>com.code-intelligence</groupId>
             <artifactId>jazzer-api</artifactId>
@@ -27,7 +25,6 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- FIXED: Chỉ giữ 1 dependency servlet -->
         <dependency>
             <groupId>javax.servlet</groupId>
             <artifactId>javax.servlet-api</artifactId>
@@ -35,7 +32,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- FIXED: Chỉ giữ 1 dependency spring-test -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-test</artifactId>
@@ -49,7 +45,6 @@
             <version>3.25.8</version>
         </dependency>
 
-        <!-- JUnit 4 (if you still want classic tests) -->
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
@@ -57,18 +52,74 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Optional logging for fuzz runs -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
             <version>1.7.36</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- ========================================== -->
+        <!-- THÊM APACHE COMMONS LANG - REQUIRED!      -->
+        <!-- ========================================== -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.14.0</version>
+        </dependency>
+
+        <!-- ========================================== -->
+        <!-- THÊM APACHE COMMONS TEXT - For StringUtils dependencies -->
+        <!-- ========================================== -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>1.11.0</version>
+        </dependency>
+
+        <!-- ========================================== -->
+        <!-- THÊM các dependencies phổ biến khác       -->
+        <!-- ========================================== -->
+        
+        <!-- Apache Commons Collections -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-collections4</artifactId>
+            <version>4.4</version>
+        </dependency>
+
+        <!-- Apache Commons IO -->
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.15.1</version>
+        </dependency>
+
+        <!-- Guava (Google Core Libraries) -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>33.0.0-jre</version>
+        </dependency>
+
+        <!-- Gson (Google JSON) -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+        </dependency>
+
+        <!-- Jsoup (HTML Parser) -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.17.2</version>
+        </dependency>
+
     </dependencies>
 
     <build>
         <plugins>
-            <!-- Surefire plugin to run tests -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
