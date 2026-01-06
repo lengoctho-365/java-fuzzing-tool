@@ -56,7 +56,7 @@ public class FuzzingRunner {
                         cpBuilder.append(binDir.getAbsolutePath()).append(";");
                     }
                     
-                    ui.appendOutput("✓ Benchmark added: " + benchmarkPath);
+                    ui.appendOutput("Benchmark added: " + benchmarkPath);
                 }
             }
             
