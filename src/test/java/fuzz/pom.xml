@@ -1,57 +1,91 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="
-           http://maven.apache.org/POM/4.0.0
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
            http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
+    
+    <!-- ========================================== -->
+    <!-- PROJECT INFORMATION                        -->
+    <!-- ========================================== -->
     <groupId>org.example</groupId>
     <artifactId>fuzzing-tool</artifactId>
     <version>1.0-SNAPSHOT</version>
+    <name>Java Fuzzing Tool</name>
+    <description>Fuzzing tool for Java applications using Jazzer</description>
 
+    <!-- ========================================== -->
+    <!-- PROPERTIES                                 -->
+    <!-- ========================================== -->
     <properties>
+        <!-- Java Version -->
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
+        
+        <!-- Encoding -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        
+        <!-- Dependency Versions -->
+        <jazzer.version>0.19.0</jazzer.version>
+        <javaparser.version>3.25.8</javaparser.version>
+        <commons-lang3.version>3.17.0-SNAPSHOT</commons-lang3.version>
+        <commons-text.version>1.11.0</commons-text.version>
+        <junit.version>4.13.2</junit.version>
+        <servlet-api.version>4.0.1</servlet-api.version>
+        <spring-test.version>5.3.33</spring-test.version>
+        
+        <!-- IMPORTANT: Đường dẫn đến Commons Lang source -->
+        <!-- Thay đổi đường dẫn này nếu bạn đặt Commons Lang ở chỗ khác -->
+        <commons-lang.basedir>${project.basedir}/../commons-lang</commons-lang.basedir>
     </properties>
 
+    <!-- ========================================== -->
+    <!-- DEPENDENCIES                               -->
+    <!-- ========================================== -->
     <dependencies>
+        
+        <!-- ==================== JAZZER ==================== -->
         <dependency>
             <groupId>com.code-intelligence</groupId>
             <artifactId>jazzer-api</artifactId>
-            <version>0.19.0</version>
+            <version>${jazzer.version}</version>
             <scope>test</scope>
         </dependency>
 
+        <!-- ==================== SERVLET API ==================== -->
         <dependency>
             <groupId>javax.servlet</groupId>
             <artifactId>javax.servlet-api</artifactId>
-            <version>4.0.1</version>
+            <version>${servlet-api.version}</version>
             <scope>provided</scope>
         </dependency>
 
+        <!-- ==================== SPRING TEST ==================== -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-test</artifactId>
-            <version>5.3.33</version>
+            <version>${spring-test.version}</version>
             <scope>test</scope>
         </dependency>
 
+        <!-- ==================== JAVAPARSER ==================== -->
         <dependency>
             <groupId>com.github.javaparser</groupId>
             <artifactId>javaparser-core</artifactId>
-            <version>3.25.8</version>
+            <version>${javaparser.version}</version>
         </dependency>
 
+        <!-- ==================== JUNIT ==================== -->
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.13.2</version>
+            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
 
+        <!-- ==================== SLF4J ==================== -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
@@ -60,56 +94,67 @@
         </dependency>
 
         <!-- ========================================== -->
-        <!-- THÊM APACHE COMMONS LANG - REQUIRED!      -->
+        <!-- APACHE COMMONS LANG - TARGET FOR FUZZING  -->
         <!-- ========================================== -->
+        <!-- 
+            OPTION 1: Sử dụng Commons Lang đã build từ source (KHUYẾN NGHỊ)
+            Uncomment phần này nếu bạn đã clone và build Commons Lang
+        -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>${commons-lang3.version}</version>
+            <scope>system</scope>
+            <systemPath>${commons-lang.basedir}/target/commons-lang3-${commons-lang3.version}.jar</systemPath>
+        </dependency>
+        
+        <!--
+            OPTION 2: Sử dụng Commons Lang từ Maven Central (DỄ HƠN)
+            Comment phần trên và uncomment phần này nếu không muốn build từ source
+        
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
             <version>3.14.0</version>
         </dependency>
+        -->
 
-        <!-- ========================================== -->
-        <!-- THÊM APACHE COMMONS TEXT - For StringUtils dependencies -->
-        <!-- ========================================== -->
+        <!-- ==================== APACHE COMMONS TEXT ==================== -->
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-text</artifactId>
-            <version>1.11.0</version>
+            <version>${commons-text.version}</version>
         </dependency>
 
-        <!-- ========================================== -->
-        <!-- THÊM các dependencies phổ biến khác       -->
-        <!-- ========================================== -->
-        
-        <!-- Apache Commons Collections -->
+        <!-- ==================== APACHE COMMONS COLLECTIONS ==================== -->
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-collections4</artifactId>
             <version>4.4</version>
         </dependency>
 
-        <!-- Apache Commons IO -->
+        <!-- ==================== APACHE COMMONS IO ==================== -->
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
             <version>2.15.1</version>
         </dependency>
 
-        <!-- Guava (Google Core Libraries) -->
+        <!-- ==================== GOOGLE GUAVA ==================== -->
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>33.0.0-jre</version>
         </dependency>
 
-        <!-- Gson (Google JSON) -->
+        <!-- ==================== GOOGLE GSON ==================== -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>2.10.1</version>
         </dependency>
 
-        <!-- Jsoup (HTML Parser) -->
+        <!-- ==================== JSOUP ==================== -->
         <dependency>
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
@@ -118,24 +163,46 @@
 
     </dependencies>
 
+    <!-- ========================================== -->
+    <!-- BUILD CONFIGURATION                        -->
+    <!-- ========================================== -->
     <build>
         <plugins>
+            
+            <!-- ==================== COMPILER PLUGIN ==================== -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <source>11</source>
+                    <target>11</target>
+                    <encoding>UTF-8</encoding>
+                    <showWarnings>true</showWarnings>
+                    <showDeprecation>true</showDeprecation>
+                </configuration>
+            </plugin>
+
+            <!-- ==================== SUREFIRE PLUGIN ==================== -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.1.2</version>
                 <configuration>
                     <testFailureIgnore>true</testFailureIgnore>
+                    <skipTests>false</skipTests>
                 </configuration>
             </plugin>
 
+            <!-- ==================== DEPENDENCY PLUGIN ==================== -->
+            <!-- Copy all dependencies to target/dependency for Jazzer -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <version>3.6.0</version>
                 <executions>
                     <execution>
-                        <id>copy</id>
+                        <id>copy-dependencies</id>
                         <phase>test-compile</phase>
                         <goals>
                             <goal>copy-dependencies</goal>
@@ -148,7 +215,137 @@
                 </executions>
             </plugin>
 
+            <!-- ==================== BUILD HELPER PLUGIN ==================== -->
+            <!-- Add Commons Lang source code to classpath for fuzzing -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.4.0</version>
+                <executions>
+                    <!-- Add Commons Lang source directory -->
+                    <execution>
+                        <id>add-commons-lang-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${commons-lang.basedir}/src/main/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                    
+                    <!-- Add Commons Lang test source directory (optional) -->
+                    <execution>
+                        <id>add-commons-lang-test-source</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>add-test-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${commons-lang.basedir}/src/test/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- ==================== RESOURCES PLUGIN ==================== -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version>
+                <configuration>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+
+            <!-- ==================== JAR PLUGIN ==================== -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addClasspath>true</addClasspath>
+                            <mainClass>ui.MainFrame</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+
+            <!-- ==================== EXEC PLUGIN ==================== -->
+            <!-- For running fuzzing directly with Maven -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <configuration>
+                    <mainClass>ui.MainFrame</mainClass>
+                </configuration>
+            </plugin>
+
         </plugins>
     </build>
+
+    <!-- ========================================== -->
+    <!-- PROFILES                                   -->
+    <!-- ========================================== -->
+    <profiles>
+        
+        <!-- Profile for using Commons Lang from Maven Central (easier) -->
+        <profile>
+            <id>maven-central</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-lang3</artifactId>
+                    <version>3.14.0</version>
+                </dependency>
+            </dependencies>
+        </profile>
+        
+        <!-- Profile for using Commons Lang from local source -->
+        <profile>
+            <id>local-source</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <commons-lang.basedir>${project.basedir}/../commons-lang</commons-lang.basedir>
+            </properties>
+        </profile>
+
+        <!-- Profile for Windows -->
+        <profile>
+            <id>windows</id>
+            <activation>
+                <os>
+                    <family>windows</family>
+                </os>
+            </activation>
+            <properties>
+                <jazzer.jar>C:\Tool_duan\jazzer-windows\jazzer_standalone.jar</jazzer.jar>
+                <java.home>C:\Program Files\Eclipse Adoptium\jdk-17.0.17.10-hotspot</java.home>
+            </properties>
+        </profile>
+
+        <!-- Profile for Unix/Linux/Mac -->
+        <profile>
+            <id>unix</id>
+            <activation>
+                <os>
+                    <family>unix</family>
+                </os>
+            </activation>
+            <properties>
+                <jazzer.jar>/opt/jazzer/jazzer_standalone.jar</jazzer.jar>
+            </properties>
+        </profile>
+
+    </profiles>
 
 </project>
